@@ -1,0 +1,56 @@
+# Reproducible load-test environment: Postgres + the API under test.
+#
+# The point of pinning this in compose rather than "run it on your laptop" is
+# that a latency number is meaningless without the environment it was measured
+# in. Anyone can re-run the exact stack the numbers in
+# docs/case-study-pool-exhaustion.md came from.
+#
+#   docker compose -f loadtest/docker-compose.yml up -d --build
+#   docker compose -f loadtest/docker-compose.yml exec api jobengine build
+#   k6 run -e BASE_URL=http://localhost:8765 loadtest/k6/browse.js
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: jobengine
+      POSTGRES_PASSWORD: jobengine
+      POSTGRES_DB: jobengine
+    ports:
+      - "55432:5432"
+    # Deliberately left at the Postgres default (100). Raising it would hide
+    # the pool-exhaustion failure this harness exists to reproduce.
+    command: ["postgres", "-c", "max_connections=100"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobengine"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: loadtest/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://jobengine:jobengine@db:5432/jobengine
+      # Override these per-run to compare configurations. The "before" numbers
+      # in the case study were taken with POOL_SIZE=5 / TIMEOUT=30.
+      JOBENGINE_DB_POOL_SIZE: "${JOBENGINE_DB_POOL_SIZE:-10}"
+      JOBENGINE_DB_MAX_OVERFLOW: "${JOBENGINE_DB_MAX_OVERFLOW:-10}"
+      JOBENGINE_DB_POOL_TIMEOUT: "${JOBENGINE_DB_POOL_TIMEOUT:-5}"
+      JOBENGINE_ANALYTICS: "${JOBENGINE_ANALYTICS:-1}"
+      JOBENGINE_SECRET_KEY: loadtest-only-not-a-real-secret
+    ports:
+      - "8765:8765"
+    depends_on:
+      db:
+        condition: service_healthy
+    # 4 workers: uvicorn's default of 1 makes the API single-process, which
+    # measures Python's GIL rather than the database behaviour under test.
+    command: >
+      uvicorn jobengine.api:app --host 0.0.0.0 --port 8765 --workers 4
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8765/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5

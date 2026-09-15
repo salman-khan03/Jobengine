@@ -1,0 +1,63 @@
+# --- secrets: keep at the top, these are the ones that actually matter -------
+# terraform.tfvars holds a real database URL with credentials.
+infra/terraform.tfvars
+infra/*.auto.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+infra/placeholder.zip
+infra/build/
+
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- test scratch / tool debug artifacts ------------------------------------
+.test-tmp/
+web/.playwright-cli/
+web/output/
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Java -------------------------------------------------------------------
+services/core-api/target/
+
+# --- Node / Next.js ---------------------------------------------------------
+node_modules/
+web/.next/
+web/out/
+web/.vercel/
+*.tsbuildinfo
+
+# --- Data: regenerable, and large -------------------------------------------
+# The raw feeds are ~23MB combined and are rebuilt by `jobengine fetch`.
+data/*.json
+data/*.csv
+*.db
+*.sqlite3
+tailored/
+
+# --- k6 ---------------------------------------------------------------------
+# Summary exports ARE committed on purpose — a quoted latency number must have
+# its raw data in the repository. Only ad-hoc runs are ignored.
+loadtest/results/scratch-*.json
+
+# --- editors / OS -----------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

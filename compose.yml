@@ -1,0 +1,92 @@
+name: roleradar
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: roleradar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-roleradar-only}
+      POSTGRES_DB: roleradar
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U roleradar]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://roleradar:${POSTGRES_PASSWORD:-local-roleradar-only}@postgres:5432/roleradar
+      JOBENGINE_SECRET_KEY: ${JOBENGINE_SECRET_KEY:-local-development-secret-at-least-32-characters}
+      JOBENGINE_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      JOBENGINE_HOME: /tmp/roleradar
+      ROLERADAR_LLM_NO_CACHE: "1"
+      ROLERADAR_LLM_PROVIDER: ${ROLERADAR_LLM_PROVIDER:-}
+      ROLERADAR_LLM_MODEL: ${ROLERADAR_LLM_MODEL:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ROLERADAR_LLM_TIMEOUT: "8"
+    command:
+      - sh
+      - -c
+      - >-
+        python -c "from roleradar import store; from jobengine import db; store.init(); db.ensure_job_embeddings()"
+        && jobengine serve --host 0.0.0.0 --port 8765
+    ports:
+      - "127.0.0.1:8765:8765"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8765/api/v2/model')"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  core-api:
+    build: ./services/core-api
+    environment:
+      DATABASE_JDBC_URL: jdbc:postgresql://postgres:5432/roleradar
+      DATABASE_USER: roleradar
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-local-roleradar-only}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      JOBENGINE_SECRET_KEY: ${JOBENGINE_SECRET_KEY:-local-development-secret-at-least-32-characters}
+      ROLERADAR_WORKER_URL: http://worker:8765
+      ROLERADAR_WORKER_TIMEOUT: 45s
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      worker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8765
+        NEXT_PUBLIC_CORE_API_URL: http://localhost:8080
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:-local-session-secret-at-least-32-characters}
+      AUTH_TRUST_HOST: "true"
+      API_INTERNAL_URL: http://worker:8765
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      core-api:
+        condition: service_started
+
+volumes:
+  postgres-data:

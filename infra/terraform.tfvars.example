@@ -1,0 +1,6 @@
+region             = "us-east-1"
+environment        = "portfolio"
+vpc_id             = "vpc-0123456789abcdef0"
+private_subnet_ids = ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"]
+database_url       = "postgresql+psycopg://USER:PASSWORD@HOST:5432/jobengine"
+alert_email        = "operator@example.com"

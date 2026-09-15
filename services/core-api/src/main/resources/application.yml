@@ -1,0 +1,97 @@
+spring:
+  application:
+    name: jobengine-core-api
+
+  datasource:
+    url: ${DATABASE_JDBC_URL:jdbc:postgresql://localhost:55432/jobengine}
+    username: ${DATABASE_USER:jobengine}
+    password: ${DATABASE_PASSWORD:jobengine}
+    hikari:
+      # Mirrors the reasoning in the Python service's db.py: pool_size +
+      # overflow is the ceiling PER PROCESS, so the real budget is this times
+      # the task count. 10 against a stock 100-connection Postgres leaves room
+      # for the Python API, the refresh job, and a psql session.
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      # Fail fast rather than queue forever. An exhausted pool should reject
+      # with 503 in seconds, not hold every request until the client times out.
+      connection-timeout: ${DB_POOL_TIMEOUT_MS:5000}
+      max-lifetime: 1800000
+
+  jpa:
+    # validate, never update/create: the Python pipeline owns this schema.
+    # Hibernate silently altering tables underneath the ingest code is exactly
+    # the failure this setting prevents — a mismatch fails at startup instead.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false   # avoids holding a connection for the whole request
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:56379}
+      timeout: 2s
+      # Short timeout on purpose: a slow Redis must degrade to a database read
+      # quickly, not add its latency on top of the query it was meant to avoid.
+
+jobengine:
+  roleradar:
+    worker-url: ${ROLERADAR_WORKER_URL:http://localhost:8765}
+    timeout: ${ROLERADAR_WORKER_TIMEOUT:30s}
+    cors-origins: ${ROLERADAR_CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  auth:
+    # Shared with the Python issuer. Production must override this value.
+    jwt-secret: ${JOBENGINE_SECRET_KEY:dev-only-insecure-secret-change-me}
+  cache:
+    search-ttl: ${SEARCH_CACHE_TTL:10m}
+  api-keys:
+    header: X-API-Key
+    allow-anonymous: true
+    anonymous-requests-per-minute: ${ANON_RPM:30}
+    keys:
+      # Development only. Production keys come from environment variables and
+      # are never committed — see docs/threat-model.md.
+      dev-key-not-for-production:
+        owner: local-development
+        requests-per-minute: 600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # Shows which dependency is failing (db vs redis) rather than a bare
+      # "DOWN" that tells an operator nothing.
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      # Redis being down must not mark the service unhealthy — it fails open to
+      # database reads (see CacheErrorConfig). Marking it DOWN would make ECS
+      # kill tasks that are still serving traffic correctly.
+      enabled: false
+  metrics:
+    tags:
+      application: jobengine-core-api
+
+springdoc:
+  api-docs:
+    path: /api/v1/openapi.json
+  swagger-ui:
+    path: /api/v1/docs
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+
+logging:
+  level:
+    app.jobengine: ${LOG_LEVEL:INFO}

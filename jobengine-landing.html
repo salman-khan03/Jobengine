@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JobEngine — job search that knows about visas</title>
+<meta name="description" content="A Python CLI that cross-references 35,000+ job listings against H-1B LCA filings, so international students stop applying into dead ends." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,600..800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0e1216;
+  --panel:#161c23;
+  --panel-2:#1c242d;
+  --line:#2a3440;
+  --amber:#ffb454;
+  --amber-dim:#c98a3a;
+  --text:#dde5ec;
+  --muted:#8494a3;
+  --ok:#7ee787;
+  --warn:#ff7b72;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'Inter',system-ui,sans-serif;
+  --disp:'Archivo',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--text);font-family:var(--sans);line-height:1.6;font-size:16px}
+a{color:var(--amber);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+
+/* nav */
+nav{display:flex;justify-content:space-between;align-items:center;padding:22px 0;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--text)}
+.brand .p{color:var(--amber)}
+nav .links{display:flex;gap:22px;font-family:var(--mono);font-size:13px}
+nav .links a{color:var(--muted)}
+nav .links a:hover{color:var(--amber);text-decoration:none}
+
+/* hero */
+.hero{padding:72px 0 40px;display:grid;grid-template-columns:1fr 1.1fr;gap:48px;align-items:center}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+h1{font-family:var(--disp);font-variation-settings:"wdth" 125;font-weight:780;font-size:clamp(34px,4.6vw,52px);line-height:1.06;letter-spacing:-.01em;margin-bottom:20px}
+h1 .hl{color:var(--amber)}
+.hero p.sub{color:var(--muted);font-size:17px;max-width:44ch;margin-bottom:28px}
+.install{display:flex;align-items:center;gap:0;font-family:var(--mono);font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;width:fit-content}
+.install code{padding:13px 18px}
+.install code .p{color:var(--amber)}
+.install button{font-family:var(--mono);font-size:12px;background:var(--panel-2);color:var(--muted);border:none;border-left:1px solid var(--line);padding:13px 16px;cursor:pointer}
+.install button:hover{color:var(--amber)}
+.hero-meta{margin-top:18px;font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap}
+.hero-meta span::before{content:"▸ ";color:var(--amber-dim)}
+
+/* terminal */
+.term{background:#0a0e12;border:1px solid var(--line);border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,180,84,.04);overflow:hidden}
+.term-bar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--line)}
+.term-bar .title{margin-left:auto;margin-right:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.term-body{padding:18px;font-family:var(--mono);font-size:13px;line-height:1.75;min-height:340px;white-space:pre-wrap}
+.t-prompt{color:var(--amber)}
+.t-cmd{color:var(--text)}
+.t-out{color:var(--muted)}
+.t-ok{color:var(--ok)}
+.t-warn{color:var(--warn)}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--amber);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.cursor{animation:none}}
+
+/* sections */
+section{padding:72px 0;border-top:1px solid var(--line)}
+.sec-label{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+h2{font-family:var(--disp);font-variation-settings:"wdth" 125;font-weight:740;font-size:clamp(24px,3vw,34px);line-height:1.15;margin-bottom:16px;letter-spacing:-.01em}
+.lede{color:var(--muted);max-width:62ch;font-size:16px}
+
+/* pitch */
+.pitch-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:36px}
+.pitch-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:26px}
+.pitch-card h3{font-family:var(--mono);font-size:14px;font-weight:600;margin-bottom:10px}
+.pitch-card.bad h3{color:var(--warn)}
+.pitch-card.good h3{color:var(--ok)}
+.pitch-card p{color:var(--muted);font-size:14.5px}
+.pitch-card code{font-family:var(--mono);font-size:12.5px;color:var(--text);background:var(--panel-2);padding:2px 6px;border-radius:4px}
+
+/* features */
+.feat-list{margin-top:36px;display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.feat{display:grid;grid-template-columns:220px 1fr;gap:20px;padding:22px 26px;background:var(--panel);border-bottom:1px solid var(--line)}
+.feat:last-child{border-bottom:none}
+.feat:nth-child(even){background:var(--panel-2)}
+.feat .cmd{font-family:var(--mono);font-size:13px;color:var(--amber)}
+.feat p{color:var(--muted);font-size:14.5px}
+.feat p strong{color:var(--text);font-weight:600}
+
+/* demo gif slot */
+.gif-slot{margin-top:36px;border:1px dashed var(--line);border-radius:10px;padding:0;overflow:hidden;background:var(--panel)}
+.gif-slot img{display:block;width:100%}
+.gif-slot .placeholder{padding:64px 24px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--muted)}
+
+/* principles */
+.prin{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:36px}
+.prin div{border-left:2px solid var(--amber-dim);padding:4px 0 4px 20px}
+.prin h3{font-size:15px;font-weight:600;margin-bottom:6px}
+.prin p{color:var(--muted);font-size:14px}
+
+/* footer / cta */
+footer{border-top:1px solid var(--line);padding:56px 0 72px;text-align:center}
+footer h2{margin-bottom:10px}
+footer .lede{margin:0 auto 28px}
+.btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:14px;padding:12px 24px;border-radius:8px;border:1px solid var(--line)}
+.btn.primary{background:var(--amber);color:#161006;font-weight:600;border-color:var(--amber)}
+.btn.primary:hover{background:#ffc270;text-decoration:none}
+.btn.ghost{color:var(--text)}
+.btn.ghost:hover{border-color:var(--amber);text-decoration:none}
+.foot-meta{margin-top:36px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+@media(max-width:860px){
+  .hero{grid-template-columns:1fr;padding-top:48px}
+  .pitch-grid,.prin{grid-template-columns:1fr}
+  .feat{grid-template-columns:1fr;gap:8px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav>
+  <span class="brand"><span class="p">$</span> jobengine</span>
+  <div class="links">
+    <a href="#why">why</a>
+    <a href="#features">features</a>
+    <a href="#demo">demo</a>
+    <a href="https://github.com/YOUR_USERNAME/jobengine">github</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div>
+    <p class="eyebrow">Python CLI · open source</p>
+    <h1>Job search that knows <span class="hl">which companies sponsor.</span></h1>
+    <p class="sub">JobEngine cross-references 35,000+ live job listings against public H-1B LCA filings — so international students stop wasting applications on companies that never sponsor.</p>
+    <div class="install">
+      <code><span class="p">$</span> pip install jobengine</code>
+      <button onclick="navigator.clipboard.writeText('pip install jobengine');this.textContent='copied';setTimeout(()=>this.textContent='copy',1500)">copy</button>
+    </div>
+    <div class="hero-meta">
+      <span>50 passing tests</span>
+      <span>CI-gated releases</span>
+      <span>daily data refresh</span>
+    </div>
+  </div>
+
+  <div class="term" aria-label="Simulated JobEngine terminal session">
+    <div class="term-bar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="title">jobengine — zsh</span>
+    </div>
+    <div class="term-body" id="term"></div>
+  </div>
+</header>
+</div>
+
+<div class="wrap">
+<section id="why">
+  <p class="sec-label">The problem</p>
+  <h2>Most job boards can't answer the only question that matters first.</h2>
+  <p class="lede">For an F-1 student, "does this company sponsor H-1B?" decides whether an application is worth an hour or worth nothing. That data exists — the Department of Labor publishes every LCA filing — but no job board joins it against live listings. JobEngine does that join, locally, in one command.</p>
+
+  <div class="pitch-grid">
+    <div class="pitch-card bad">
+      <h3>✗ without jobengine</h3>
+      <p>Apply → interview → final round → "unfortunately we can't sponsor at this time." Weeks lost per dead end, repeated across dozens of companies.</p>
+    </div>
+    <div class="pitch-card good">
+      <h3>✓ with jobengine</h3>
+      <p><code>jobengine search --sponsors-only</code> filters every listing against real LCA filing history before you write a single cover letter.</p>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <p class="sec-label">What it does</p>
+  <h2>One pipeline, fetch to offer.</h2>
+  <div class="feat-list">
+    <div class="feat">
+      <span class="cmd">jobengine fetch</span>
+      <p><strong>35K+ listings, deduplicated.</strong> Pulls from multiple sources, collapses reposts and cross-posts into single canonical entries.</p>
+    </div>
+    <div class="feat">
+      <span class="cmd">jobengine sponsors</span>
+      <p><strong>H-1B LCA cross-referencing.</strong> Joins listings against Department of Labor LCA disclosure data to flag companies with real sponsorship history.</p>
+    </div>
+    <div class="feat">
+      <span class="cmd">jobengine tailor</span>
+      <p><strong>Honest resume tailoring.</strong> Reorders and selects your existing bullets per job description. Selection and reordering only — it never fabricates a claim, and a metric audit gate blocks unverifiable numbers.</p>
+    </div>
+    <div class="feat">
+      <span class="cmd">jobengine track</span>
+      <p><strong>Application tracking.</strong> Every application, stage, and follow-up in one local store — no spreadsheet drift.</p>
+    </div>
+    <div class="feat">
+      <span class="cmd">jobengine serve</span>
+      <p><strong>Zero-dependency HTTP API.</strong> A stdlib-only server exposes the whole engine to scripts and dashboards.</p>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <p class="sec-label">Demo</p>
+  <h2>See it run.</h2>
+  <div class="gif-slot">
+    <!-- Replace this div with: <img src="demo.gif" alt="JobEngine demo: fetching listings and filtering by sponsorship"> -->
+    <div class="placeholder">[ demo.gif — record with `vhs` or `asciinema`, drop it here ]</div>
+  </div>
+</section>
+
+<section>
+  <p class="sec-label">Principles</p>
+  <h2>Built like it's going to be audited.</h2>
+  <div class="prin">
+    <div>
+      <h3>No fabricated metrics</h3>
+      <p>The tailoring engine is architecturally unable to invent claims — an audit gate rejects any bullet with an unverifiable number.</p>
+    </div>
+    <div>
+      <h3>Tested, gated, released</h3>
+      <p>50 tests run on every push. Releases only publish when the suite is green and the tag matches the package version.</p>
+    </div>
+    <div>
+      <h3>Fresh by default</h3>
+      <p>A daily GitHub Actions pipeline refetches and dedups listings, committing only when the data actually changed.</p>
+    </div>
+    <div>
+      <h3>Local first</h3>
+      <p>Your applications, notes, and resume live on your machine. No account, no telemetry, no lock-in.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<footer>
+<div class="wrap">
+  <h2>Stop applying into dead ends.</h2>
+  <p class="lede">Free, open source, one pip install away.</p>
+  <div class="btns">
+    <a class="btn primary" href="https://pypi.org/project/jobengine/">pip install jobengine</a>
+    <a class="btn ghost" href="https://github.com/YOUR_USERNAME/jobengine">View on GitHub →</a>
+  </div>
+  <p class="foot-meta">built by Salman Aziz Khan · MIT license</p>
+</div>
+</footer>
+
+<script>
+// self-typing terminal demo
+const lines = [
+  {t:'cmd',  txt:'jobengine fetch'},
+  {t:'out',  txt:'fetching from 4 sources… 41,208 raw listings'},
+  {t:'out',  txt:'dedup: collapsed 6,180 reposts → 35,028 unique'},
+  {t:'ok',   txt:'✓ done in 42s'},
+  {t:'cmd',  txt:'jobengine sponsors --role "backend engineer" --new-grad'},
+  {t:'out',  txt:'cross-referencing DOL LCA disclosures (FY2024–25)…'},
+  {t:'out',  txt:'1,204 matching roles · 318 at companies with LCA history'},
+  {t:'ok',   txt:'✓ 318 sponsor-likely listings saved to shortlist'},
+  {t:'cmd',  txt:'jobengine tailor --job 2117 resume.yaml'},
+  {t:'out',  txt:'selected 9/14 bullets, reordered for JD keywords'},
+  {t:'warn', txt:'audit gate: 0 unverifiable metrics detected'},
+  {t:'ok',   txt:'✓ wrote resume_2117.pdf'},
+];
+
+const term = document.getElementById('term');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+if (reduce){
+  term.innerHTML = lines.map(l =>
+    l.t==='cmd'
+      ? `<span class="t-prompt">$ </span><span class="t-cmd">${esc(l.txt)}</span>`
+      : `<span class="t-${l.t}">${esc(l.txt)}</span>`
+  ).join('\n') + '\n<span class="t-prompt">$ </span><span class="cursor"></span>';
+} else {
+  let i = 0;
+  function nextLine(){
+    if (i >= lines.length){
+      term.innerHTML += `<span class="t-prompt">$ </span><span class="cursor"></span>`;
+      return;
+    }
+    const l = lines[i++];
+    if (l.t === 'cmd'){
+      term.innerHTML += `<span class="t-prompt">$ </span>`;
+      typeCmd(l.txt, 0);
+    } else {
+      term.innerHTML += `<span class="t-${l.t}">${esc(l.txt)}</span>\n`;
+      setTimeout(nextLine, 260);
+    }
+  }
+  function typeCmd(txt, j){
+    if (j === 0) term.innerHTML += `<span class="t-cmd"></span>`;
+    const span = term.querySelectorAll('.t-cmd');
+    const el = span[span.length-1];
+    if (j < txt.length){
+      el.textContent += txt[j];
+      setTimeout(()=>typeCmd(txt, j+1), 26 + Math.random()*40);
+    } else {
+      term.innerHTML += '\n';
+      setTimeout(nextLine, 420);
+    }
+  }
+  setTimeout(nextLine, 600);
+}
+</script>
+</body>
+</html>

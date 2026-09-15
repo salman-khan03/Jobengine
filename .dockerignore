@@ -1,0 +1,16 @@
+.git
+.env*
+**/node_modules
+**/.next
+**/__pycache__
+**/target
+.test-tmp
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data
+tailored
+*.db
+infra
+web
+services

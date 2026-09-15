@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/*
+  Deliberately single-theme: a CLI splash screen doesn't get a light mode,
+  and this site is built for people who already live in a terminal. Tokens
+  still route through custom properties (not hardcoded per-component) so the
+  palette has one place to change.
+*/
+:root {
+  --ink: #0e1216;       /* page plane */
+  --panel: #161c23;     /* card / chart surface */
+  --panel-2: #1c242d;   /* alternate row / recessed surface */
+  --line: #2a3440;      /* hairline borders */
+  --text: #dde5ec;      /* primary ink */
+  --muted: #8494a3;     /* secondary ink */
+  --faint: #5c6a78;     /* tertiary / axis labels */
+
+  --amber: #ffb454;     /* accent — very_high tier, primary CTA */
+  --amber-dim: #c98a3a;
+
+  /* Ordinal amber ramp for the sponsorship-tier chart — validated with
+     scripts/validate_palette.js --ordinal --mode dark --surface #161c23:
+     monotone lightness, single hue (10° spread), all adjacent steps
+     >=0.06 L apart, dimmest step still 2.43:1 against the panel surface. */
+  --tier-very-high: #ffb454;
+  --tier-high: #e49f49;
+  --tier-offers: #c98c3f;
+  --tier-medium: #ad7935;
+  --tier-low: #8f662c;
+  --tier-unknown: #6f5424;
+
+  /* Status — reserved, never reused as a categorical slot. Always shipped
+     with a text label, since desaturated grays fail the CVD chroma floor
+     on their own (checked; acceptable per the skill's icon+label mitigation). */
+  --status-excluded: #8a8f98;
+  --status-good: #7ee787;
+  --status-warn: #ff7b72;
+
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --sans: "Inter", system-ui, sans-serif;
+  --disp: "Archivo", var(--sans);
+}
+
+@theme inline {
+  --color-background: var(--ink);
+  --color-foreground: var(--text);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --font-display: var(--disp);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.6;
+}
+
+::selection {
+  background: var(--amber);
+  color: #161006;
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.font-variant-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.cursor-blink {
+  animation: cursor-blink 1s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor-blink {
+    animation: none;
+  }
+}

@@ -1,0 +1,60 @@
+name: Auto-refresh job data
+
+# Runs daily at 6 AM Central (11:00 UTC) + manual trigger button
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install JobEngine
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Fetch fresh listings + rebuild
+        # `jobengine build` fetches, dedups, sponsor-annotates, and writes the
+        # DB in one step — see src/jobengine/cli.py's dispatch table. There is
+        # no separate `dedup` subcommand; this workflow referenced one that
+        # never existed and would have failed on its first real run.
+        run: |
+          jobengine fetch
+          jobengine build
+        env:
+          # Add any API keys your fetchers need as repo secrets:
+          # JOB_API_KEY: ${{ secrets.JOB_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+
+      - name: Check if data changed
+        id: diff
+        run: |
+          if git diff --quiet -- data/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit refreshed data
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "jobengine-bot"
+          git config user.email "actions@github.com"
+          git add data/
+          git commit -m "chore: auto-refresh job listings $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Summary
+        run: |
+          echo "### Refresh complete 🎉" >> "$GITHUB_STEP_SUMMARY"
+          echo "Changed: ${{ steps.diff.outputs.changed }}" >> "$GITHUB_STEP_SUMMARY"

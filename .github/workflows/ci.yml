@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev deps
+        run: pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check src/ tests/
+
+      - name: Type-check (mypy)
+        # src/roleradar is NOT advisory: it type-checks clean today and the
+        # decision layer is where a silent type error becomes wrong advice.
+        run: mypy src/roleradar --ignore-missing-imports
+
+      - name: Type-check jobengine (advisory)
+        run: mypy src/jobengine --ignore-missing-imports
+        continue-on-error: true   # advisory until full coverage lands
+
+      - name: Test (pytest)
+        run: pytest -v

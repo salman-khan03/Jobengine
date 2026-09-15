@@ -1,0 +1,23 @@
+# Load-testing profile: SPRING_PROFILES_ACTIVE=loadtest
+#
+# Raises the rate limit far above any real quota so the load test measures the
+# search path rather than the rate limiter. Without this, a generator pushing
+# 17k req/s against a 600 req/min key produces a 99.9% 429 rate and a latency
+# figure that describes rejection, not work — which is a real result about the
+# limiter, and useless as a search benchmark.
+#
+# Never enable this profile in a deployed environment.
+
+jobengine:
+  api-keys:
+    anonymous-requests-per-minute: 100000000
+    keys:
+      loadtest-key:
+        owner: k6-load-test
+        requests-per-minute: 100000000
+
+# Log at WARN so the generator isn't measuring this service's own log I/O.
+logging:
+  level:
+    app.jobengine: WARN
+    org.hibernate: WARN
